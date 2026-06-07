@@ -1,21 +1,13 @@
 const http = require('http');
 const { v4: uuidv4 } = require('uuid');
 const errorHandle = require('./errorHandle');
+const successHandle = require('./successHandle');
 
 const todos = [];
 
-const headers = {
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Content-Length, X-Requested-With',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'PATCH, POST, GET,OPTIONS,DELETE',
-    'Content-Type': 'application/json'
-};
+const headers = require('./headers');
 
-const sendResponse = (res, statusCode, body) => {
-    res.writeHead(statusCode, headers);
-    res.write(JSON.stringify(body));
-    res.end();
-};
+const sendSuccess = (res) => successHandle(res, todos);
 
 const getRequestBody = (req) => {
     return new Promise((resolve, reject) => {
@@ -41,7 +33,7 @@ const requestListener = async (req, res) => {
     }
 
     if (req.url === '/todos' && req.method === 'GET') {
-        sendResponse(res, 200, { status: "success", data: todos });
+        sendSuccess(res);
         return;
     }
 
@@ -54,7 +46,7 @@ const requestListener = async (req, res) => {
             }
             const todo = { title: title.trim(), id: uuidv4() };
             todos.push(todo);
-            sendResponse(res, 200, { status: "success", data: todos });
+            sendSuccess(res);
         } catch (error) {
             errorHandle(res);
         }
@@ -63,7 +55,7 @@ const requestListener = async (req, res) => {
 
     if (req.url === '/todos' && req.method === "DELETE") {
         todos.length = 0;
-        sendResponse(res, 200, { status: "success", data: todos });
+        sendSuccess(res);
         return;
     }
 
@@ -75,7 +67,7 @@ const requestListener = async (req, res) => {
             return;
         }
         todos.splice(index, 1);
-        sendResponse(res, 200, { status: "success", data: todos });
+        sendSuccess(res);
         return;
     }
 
@@ -89,7 +81,7 @@ const requestListener = async (req, res) => {
                 return;
             }
             todos[index].title = title.trim();
-            sendResponse(res, 200, { status: "success", data: todos });
+            sendSuccess(res);
         } catch (error) {
             errorHandle(res);
         }
