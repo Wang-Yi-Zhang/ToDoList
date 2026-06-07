@@ -2,10 +2,7 @@ const http = require('http');
 const { v4: uuidv4 } = require('uuid');
 const errorHandle = require('./errorHandle');
 
-const todos = [{
-    "title": "今天寫作業",
-    "id": uuidv4()
-}];
+const todos = [];
 
 const headers = {
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, Content-Length, X-Requested-With',
