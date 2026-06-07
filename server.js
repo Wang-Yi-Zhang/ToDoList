@@ -7,12 +7,30 @@ const todos = [];
 
 const headers = require('./headers');
 
-const sendSuccess = (res) => successHandle(res, todos);
+const MAX_BODY_SIZE = 1 * 1024 * 1024; // 1MB
+
+class PayloadTooLargeError extends Error {}
+
+const handleRequestError = (res, error) => {
+    if (error instanceof PayloadTooLargeError) {
+        errorHandle(res, 413, "請求內容過大");
+    } else {
+        errorHandle(res, 400, "欄位未填寫正確");
+    }
+};
 
 const getRequestBody = (req) => {
     return new Promise((resolve, reject) => {
         let body = "";
-        req.on('data', (chunk) => { body += chunk; });
+        let size = 0;
+        req.on('data', (chunk) => {
+            size += chunk.length;
+            if (size > MAX_BODY_SIZE) {
+                reject(new PayloadTooLargeError());
+                return;
+            }
+            body += chunk;
+        });
         req.on('end', () => {
             try {
                 resolve(body ? JSON.parse(body) : {});
@@ -33,7 +51,7 @@ const requestListener = async (req, res) => {
     }
 
     if (req.url === '/todos' && req.method === 'GET') {
-        sendSuccess(res);
+        successHandle(res, todos);
         return;
     }
 
@@ -41,21 +59,21 @@ const requestListener = async (req, res) => {
         try {
             const { title } = await getRequestBody(req);
             if (!isValidTitle(title)) {
-                errorHandle(res);
+                errorHandle(res, 400, "欄位未填寫正確");
                 return;
             }
             const todo = { title: title.trim(), id: uuidv4() };
             todos.push(todo);
-            sendSuccess(res);
+            successHandle(res, todo);
         } catch (error) {
-            errorHandle(res);
+            handleRequestError(res, error);
         }
         return;
     }
 
     if (req.url === '/todos' && req.method === "DELETE") {
         todos.length = 0;
-        sendSuccess(res);
+        successHandle(res, todos);
         return;
     }
 
@@ -63,11 +81,11 @@ const requestListener = async (req, res) => {
         const id = req.url.split("/").pop();
         const index = todos.findIndex((todo) => todo.id === id);
         if (index === -1) {
-            errorHandle(res);
+            errorHandle(res, 404, "查無此 todo");
             return;
         }
         todos.splice(index, 1);
-        sendSuccess(res);
+        successHandle(res, todos);
         return;
     }
 
@@ -76,14 +94,18 @@ const requestListener = async (req, res) => {
             const id = req.url.split("/").pop();
             const { title } = await getRequestBody(req);
             const index = todos.findIndex((todo) => todo.id === id);
-            if (index === -1 || !isValidTitle(title)) {
-                errorHandle(res);
+            if (index === -1) {
+                errorHandle(res, 404, "查無此 todo");
+                return;
+            }
+            if (!isValidTitle(title)) {
+                errorHandle(res, 400, "欄位未填寫正確");
                 return;
             }
             todos[index].title = title.trim();
-            sendSuccess(res);
+            successHandle(res, todos[index]);
         } catch (error) {
-            errorHandle(res);
+            handleRequestError(res, error);
         }
         return;
     }
